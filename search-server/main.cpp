@@ -49,11 +49,6 @@ struct Document {
     double relevance;
 };
 
-struct Query {
-    set<string> plus_words;
-    set<string> minus_words;
-};
-
 class SearchServer {
 public:
     void SetStopWords(const string& text) {
@@ -88,10 +83,19 @@ public:
 
 private:
 
-    map<string, map<int, double>> word_to_document_freqs_;
+    struct Query {
+        set<string> plus_words;
+        set<string> minus_words;
+    };
 
+    struct QueryWord {
+        string text;
+        bool is_minus;
+        bool is_stop;
+    };
+
+    map<string, map<int, double>> word_to_document_freqs_;
     set<string> stop_words_;
-    
     int document_count_ = 0;
 
     bool IsStopWord(const string& word) const {
@@ -108,18 +112,28 @@ private:
         return words;
     }
 
+    QueryWord ParseQueryWord (string text) const {
+        bool is_minus = false;
+        if (text[0] == '-') {
+            is_minus = true;
+            text = text.substr(1);
+        }
+        return {text, is_minus, IsStopWord(text)};
+    }
+
     Query ParseQuery(const string& raw_query) const {
-        Query query_words;
+        Query query;
         for (const string& word : SplitIntoWords(raw_query)) {
-            if (word[0] == '-') {
-                query_words.minus_words.insert(word.substr(1));
-            } else if (stop_words_.count(word) != 0) {
-                continue;
-            } else {
-                query_words.plus_words.insert(word);
+            const QueryWord query_word = ParseQueryWord(word);
+            if (!query_word.is_stop) {
+                if (query_word.is_minus) {
+                    query.minus_words.insert(query_word.text);
+                } else {
+                    query.plus_words.insert(query_word.text);
+                }
             }
         }
-        return query_words;
+        return query;
     }
 
     vector<Document> FindAllDocuments(const Query& query_words) const {
@@ -127,7 +141,7 @@ private:
         map<int, double> document_to_relevance;
         for (const string& plus_word : query_words.plus_words) {
             if (word_to_document_freqs_.count(plus_word) != 0) {
-                static_cast <double> (idf = log(document_count_/(word_to_document_freqs_.at(plus_word).size())));
+                double idf = log(document_count_*1.0/word_to_document_freqs_.at(plus_word).size());
                 for (const auto& [id, tf] : word_to_document_freqs_.at(plus_word)) {
                     document_to_relevance[id] += tf * idf;
                 }
