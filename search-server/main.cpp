@@ -6,10 +6,12 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <numeric>
 
 using namespace std;
 
 const int MAX_RESULT_DOCUMENT_COUNT = 5;
+const double DELTA = 1e-6;
 
 string ReadLine() {
     string s;
@@ -82,7 +84,7 @@ public:
 
         sort(matched_documents.begin(), matched_documents.end(),
              [](const Document& lhs, const Document& rhs) {
-                 if (abs(lhs.relevance - rhs.relevance) < 1e-6) {
+                 if (abs(lhs.relevance - rhs.relevance) < DELTA) {
                      return lhs.rating > rhs.rating;
                  } else {
                      return lhs.relevance > rhs.relevance;
@@ -94,15 +96,7 @@ public:
         return matched_documents;
     }
 
-    vector<Document> FindTopDocuments(const string& raw_query) const {
-        return FindTopDocuments(raw_query, [](int document_id,
-                                              DocumentStatus status,
-                                              int rating){
-            return status == DocumentStatus::ACTUAL;
-        });
-    }
-
-    vector<Document> FindTopDocuments(const string& raw_query, DocumentStatus status) const {
+    vector<Document> FindTopDocuments(const string& raw_query, DocumentStatus status = DocumentStatus::ACTUAL) const {
         DocumentStatus new_status = status;
         return FindTopDocuments(raw_query, [&new_status] (int document_id, DocumentStatus status, int rating)
         {return status == new_status;});
@@ -164,10 +158,7 @@ private:
         if (ratings.empty()) {
             return 0;
         }
-        int rating_sum = 0;
-        for (const int rating : ratings) {
-            rating_sum += rating;
-        }
+        int rating_sum = accumulate(ratings.begin(),ratings.end(),0);
         return rating_sum / static_cast<int>(ratings.size());
     }
 
@@ -221,7 +212,8 @@ private:
             }
             const double inverse_document_freq = ComputeWordInverseDocumentFreq(word);
             for (const auto [document_id, term_freq] : word_to_document_freqs_.at(word)) {
-                if (pred(document_id, documents_.at(document_id).status, documents_.at(document_id).rating)) {
+                DocumentData document_info = documents_.at(document_id);
+                if (pred(document_id, document_info.status, document_info.rating)) {
                     document_to_relevance[document_id] += term_freq * inverse_document_freq;
                 }
             }
