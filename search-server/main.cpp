@@ -11,6 +11,7 @@
 using namespace std;
 
 const int MAX_RESULT_DOCUMENT_COUNT = 5;
+const double DELTA = 1e-06;
 
 string ReadLine() {
     string s;
@@ -112,13 +113,15 @@ public:
         if (!IsValidWord(document)) {
             throw invalid_argument("Error. Invalid argument in adding document."s);
         }
+        ID_of_docs.push_back(document_id);
         const vector<string> words = SplitIntoWordsNoStop(document);
         const double inv_word_count = 1.0 / words.size();
         for (const string& word : words) {
             word_to_document_freqs_[word][document_id] += inv_word_count;
         }
         documents_.emplace(document_id, DocumentData{ComputeAverageRating(ratings), status});
-        if (GetDocumentId(document_id) == SearchServer::INVALID_DOCUMENT_ID) {
+        int index = GetDocumentCount()-1;
+        if (GetDocumentId(index) == SearchServer::INVALID_DOCUMENT_ID) {
             throw out_of_range("Error. ID is out of range."s);
         }
     }
@@ -126,24 +129,11 @@ public:
     template <typename DocumentPredicate>
     vector<Document> FindTopDocuments(const string& raw_query,
                                       DocumentPredicate document_predicate) const {
-        if (!IsValidWord(raw_query)) {
-            throw invalid_argument("Error. Invalid argument in query."s);
-        }
         const Query query = ParseQuery(raw_query);
-        for (const string& word : query.plus_words) {
-            if (word[0] == '-' || word[word.size()-1] == '-') {
-                throw invalid_argument("Error. Incorrect using minus."s);
-            }
-        }
-        for (const string& word : query.minus_words) {
-            if (word[0] == '-' || word.size() == 0 || word[word.size()-1] == '-') {
-                throw invalid_argument("Error. Incorrect using minus."s);
-            }
-        }
         auto matched_documents = FindAllDocuments(query, document_predicate);
         sort(matched_documents.begin(), matched_documents.end(),
              [](const Document& lhs, const Document& rhs) {
-                 if (abs(lhs.relevance - rhs.relevance) < 1e-6) {
+                 if (abs(lhs.relevance - rhs.relevance) < DELTA) {
                      return lhs.rating > rhs.rating;
                  } else {
                      return lhs.relevance > rhs.relevance;
@@ -174,15 +164,9 @@ public:
 
     tuple<vector<string>, DocumentStatus> MatchDocument(const string& raw_query,
                                                         int document_id) const {
-        if (!IsValidWord(raw_query)) {
-            throw invalid_argument("Error. Invalid argument in query."s);
-        }
         const Query query = ParseQuery(raw_query);
         vector<string> matched_words;
         for (const string& word : query.plus_words) {
-            if (word[0] == '-' || word[word.size()-1] == '-') {
-                throw invalid_argument("Error. Incorrect using minus."s);
-            }
             if (word_to_document_freqs_.count(word) == 0) {
                 continue;
             }
@@ -191,9 +175,6 @@ public:
             }
         }
         for (const string& word : query.minus_words) {
-            if (word[0] == '-' || word.size() == 0 || word[word.size()-1] == '-') {
-                throw invalid_argument("Error. Incorrect using minus."s);
-            }
             if (word_to_document_freqs_.count(word) == 0) {
                 continue;
             }
@@ -206,14 +187,11 @@ public:
     }
 
     int GetDocumentId(int index) const {
-        if (index < 0 || index > GetDocumentCount()) {
-            throw out_of_range("Error. ID is out of range."s);
-        } else {
-            return index;
-        }
+        return ID_of_docs.at(index);
     }
 
 private:
+    vector<int> ID_of_docs;
     struct DocumentData {
         int rating;
         DocumentStatus status;
@@ -260,11 +238,17 @@ private:
     };
 
     QueryWord ParseQueryWord(string text) const {
+        if (!IsValidWord(text)) {
+            throw invalid_argument("Error. Invalid argument in query."s);
+        }
         bool is_minus = false;
         // Word shouldn't be empty
         if (text[0] == '-') {
             is_minus = true;
             text = text.substr(1);
+        }
+        if (text[0] == '-' || text[text.size()-1] == '-' || text.size() == 0) {
+            throw invalid_argument("Error. Incorrect using minus."s);
         }
         return {text, is_minus, IsStopWord(text)};
     }
@@ -344,7 +328,7 @@ int main() {
         // о неиспользуемом результате его вызова
         search_server.AddDocument(1, "пушистый кот пушистый хвост"s, DocumentStatus::ACTUAL, {7, 2, 7});
         search_server.AddDocument(2, "пушистый пёс и модный ошейник"s, DocumentStatus::ACTUAL, {1, 2});
-        search_server.AddDocument(7, "пушистый пёс и модный ошейник"s, DocumentStatus::ACTUAL, {1, 2});
+        search_server.AddDocument(1000, "пушистый пёс и модный ошейник"s, DocumentStatus::ACTUAL, {1, 2});
         search_server.AddDocument(4, "большой пёс скво\x12рец"s, DocumentStatus::ACTUAL, {1, 3, 2});
         auto documents = search_server.FindTopDocuments("--пушистый"s);
         for (const auto& document : documents) {
