@@ -1,16 +1,3 @@
-/*#include <algorithm>
-#include <cmath>
-#include <iostream>
-#include <map>
-#include <set>
-#include <stdexcept>
-#include <string>
-#include <utility>
-#include <vector>
-#include <numeric>*/
-
-
-
 #include "search_server.h"
 #include "request_queue.h"
 #include "paginator.h"
