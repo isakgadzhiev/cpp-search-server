@@ -13,18 +13,7 @@ public:
     {
     }
     template <typename DocumentPredicate>
-    std::vector<Document> AddFindRequest(const std::string& raw_query, DocumentPredicate document_predicate) {
-        auto result = search_server_.FindTopDocuments(raw_query, document_predicate);
-        if (requests_.size() >= min_in_day_) {
-            requests_.pop_front();
-            --no_results_request_;
-        }
-        requests_.push_front({static_cast<int>(requests_.size())});
-        if (result.empty()) {
-            ++no_results_request_;
-        }
-        return result;
-    }
+    std::vector<Document> AddFindRequest(const std::string& raw_query, DocumentPredicate document_predicate);
     std::vector<Document> AddFindRequest(const std::string& raw_query, DocumentStatus status);
     std::vector<Document> AddFindRequest(const std::string& raw_query);
     int GetNoResultRequests() const;
@@ -37,3 +26,17 @@ private:
     const SearchServer& search_server_;
     int no_results_request_;
 };
+
+template <typename DocumentPredicate>
+std::vector<Document> RequestQueue::AddFindRequest(const std::string& raw_query, DocumentPredicate document_predicate) {
+    auto result = search_server_.FindTopDocuments(raw_query, document_predicate);
+    if (requests_.size() >= min_in_day_) {
+        requests_.pop_front();
+        --no_results_request_;
+    }
+    requests_.push_front({static_cast<int>(requests_.size())});
+    if (result.empty()) {
+        ++no_results_request_;
+    }
+    return result;
+}

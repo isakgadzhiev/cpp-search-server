@@ -1,7 +1,6 @@
 #pragma once
 
 #include <algorithm>
-#include <vector>
 
 using namespace std;
 
@@ -44,9 +43,9 @@ public:
                 AddPage(range_begin, range_begin + page_size);
                 advance(range_begin, page_size);
             }
-        }
-        if (range_begin != range_end) {
-            AddPage(range_begin, range_end);
+            if (range_begin != range_end) {
+                AddPage(range_begin, range_end);
+            }
         }
     }
     auto begin() const {
