@@ -29,7 +29,7 @@ private:
 
 template <typename DocumentPredicate>
 std::vector<Document> RequestQueue::AddFindRequest(const std::string& raw_query, DocumentPredicate document_predicate) {
-    auto result = search_server_.FindTopDocuments(raw_query, document_predicate);
+    auto result = search_server_.FindTopDocuments(std::execution::seq, std::string_view(raw_query), document_predicate);
     if (requests_.size() >= min_in_day_) {
         requests_.pop_front();
         --no_results_request_;
