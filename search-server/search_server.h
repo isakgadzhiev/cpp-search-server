@@ -38,17 +38,13 @@ public:
 
     template <typename DocumentPredicate>
     std::vector<Document> FindTopDocuments(const std::string_view raw_query, DocumentPredicate document_predicate) const;
-
     std::vector<Document> FindTopDocuments(const std::string_view raw_query, DocumentStatus status) const;
-
     std::vector<Document> FindTopDocuments(const std::string_view raw_query) const;
 
     template <typename DocumentPredicate, typename ExecutionPolicy>
     std::vector<Document> FindTopDocuments(const ExecutionPolicy& policy, const std::string_view raw_query, DocumentPredicate document_predicate) const;
-
     template <typename ExecutionPolicy>
     std::vector<Document> FindTopDocuments(const ExecutionPolicy& policy, const std::string_view raw_query, DocumentStatus status) const;
-
     template <typename ExecutionPolicy>
     std::vector<Document> FindTopDocuments(const ExecutionPolicy& policy, const std::string_view raw_query) const;
 
@@ -63,16 +59,13 @@ public:
     const std::map<std::string_view, double>& GetWordFrequencies(int document_id) const;
 
     void RemoveDocument(int document_id);
-
     void RemoveDocument(std::execution::sequenced_policy, int document_id);
-
     void RemoveDocument(std::execution::parallel_policy, int document_id);
 
-    std::tuple<std::vector<std::string_view>, DocumentStatus> MatchDocument(const std::string_view raw_query, int document_id) const;
-
-    std::tuple<std::vector<std::string_view>, DocumentStatus> MatchDocument(const std::execution::sequenced_policy&, const std::string_view raw_query, int document_id) const;
-
-    std::tuple<std::vector<std::string_view>, DocumentStatus> MatchDocument(const std::execution::parallel_policy&, const std::string_view raw_query, int document_id) const;
+    using TupleType = std::tuple<std::vector<std::string_view>, DocumentStatus>;
+    TupleType MatchDocument(const std::string_view raw_query, int document_id) const;
+    TupleType MatchDocument(const std::execution::sequenced_policy&, const std::string_view raw_query, int document_id) const;
+    TupleType MatchDocument(const std::execution::parallel_policy&, const std::string_view raw_query, int document_id) const;
 
 private:
     struct DocumentData {
@@ -105,18 +98,14 @@ private:
 
     QueryWord ParseQueryWord(const std::string_view text) const;
 
-    Query ParseQuery(const std::string_view text) const;
-
-    Query ParseQueryPar(const std::string_view text) const;
+    Query ParseQuery(std::string_view text, bool Is_par_policy = false) const;
 
     double ComputeWordInverseDocumentFreq(const std::string_view word) const;
 
     template <typename DocumentPredicate>
     std::vector<Document> FindAllDocuments(const std::execution::sequenced_policy&, const Query& query, DocumentPredicate document_predicate) const;
-
     template <typename DocumentPredicate>
     std::vector<Document> FindAllDocuments(const Query& query, DocumentPredicate document_predicate) const;
-
     template <typename DocumentPredicate>
     std::vector<Document> FindAllDocuments(const std::execution::parallel_policy&, const Query& query, DocumentPredicate document_predicate) const;
 };
@@ -153,7 +142,7 @@ std::vector<Document> SearchServer::FindTopDocuments(const ExecutionPolicy& poli
     if (std::is_same_v<ExecutionPolicy, std::execution::sequenced_policy>) {
         return FindTopDocuments(raw_query, document_predicate);
     } else {
-        const auto query = ParseQuery(raw_query);
+        const auto query = ParseQuery(raw_query, true);
         auto matched_documents = FindAllDocuments(policy, query, document_predicate);
         sort(std::execution::par, matched_documents.begin(), matched_documents.end(),
              [](const Document &lhs, const Document &rhs) {
