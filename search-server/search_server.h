@@ -53,7 +53,6 @@ public:
     int GetDocumentCount() const;
 
     std::set<int>::const_iterator begin() const;
-
     std::set<int>::const_iterator end() const;
 
     const std::map<std::string_view, double>& GetWordFrequencies(int document_id) const;
@@ -62,22 +61,22 @@ public:
     void RemoveDocument(std::execution::sequenced_policy, int document_id);
     void RemoveDocument(std::execution::parallel_policy, int document_id);
 
-    using TupleType = std::tuple<std::vector<std::string_view>, DocumentStatus>;
-    TupleType MatchDocument(const std::string_view raw_query, int document_id) const;
-    TupleType MatchDocument(const std::execution::sequenced_policy&, const std::string_view raw_query, int document_id) const;
-    TupleType MatchDocument(const std::execution::parallel_policy&, const std::string_view raw_query, int document_id) const;
+    using MatchDocuments = std::tuple<std::vector<std::string_view>, DocumentStatus>;
+    MatchDocuments MatchDocument(const std::string_view raw_query, int document_id) const;
+    MatchDocuments MatchDocument(const std::execution::sequenced_policy&, const std::string_view raw_query, int document_id) const;
+    MatchDocuments MatchDocument(const std::execution::parallel_policy&, const std::string_view raw_query, int document_id) const;
 
 private:
     struct DocumentData {
         int rating;
         DocumentStatus status;
+        std::deque<std::string> string_storage;
     };
     const std::set<std::string, std::less<>> stop_words_;
     std::map<std::string_view, std::map<int, double>> word_to_document_freqs_;
     std::map<int, std::map<std::string_view, double>> word_freqs_;
     std::map<int, DocumentData> documents_;
     std::set<int> document_ids_;
-    std::deque<std::string> string_storage_;
     struct QueryWord {
         std::string_view data;
         bool is_minus;
@@ -98,7 +97,7 @@ private:
 
     QueryWord ParseQueryWord(const std::string_view text) const;
 
-    Query ParseQuery(std::string_view text, bool Is_par_policy = false) const;
+    Query ParseQuery(const std::string_view text, const bool is_seq_pol = true) const;
 
     double ComputeWordInverseDocumentFreq(const std::string_view word) const;
 
@@ -142,7 +141,7 @@ std::vector<Document> SearchServer::FindTopDocuments(const ExecutionPolicy& poli
     if (std::is_same_v<ExecutionPolicy, std::execution::sequenced_policy>) {
         return FindTopDocuments(raw_query, document_predicate);
     } else {
-        const auto query = ParseQuery(raw_query, true);
+        const auto query = ParseQuery(raw_query, false);
         auto matched_documents = FindAllDocuments(policy, query, document_predicate);
         sort(std::execution::par, matched_documents.begin(), matched_documents.end(),
              [](const Document &lhs, const Document &rhs) {
